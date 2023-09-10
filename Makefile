@@ -1,5 +1,8 @@
 install:
-	pipenv install
+	pipenv install .
+
+install_dev:
+	pipenv install --editable .
 
 shell:
 	pipenv shell
@@ -11,7 +14,7 @@ remove:
 	pipenv --rm
 
 run:
-	pipenv run python3 consumer.py
+	pipenv run python3 bin/run.py encode
 
-producer:
-	pipenv run python3 producer.py
+run2:
+	pipenv run python3 bin/run.py probe
