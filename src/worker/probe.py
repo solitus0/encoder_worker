@@ -45,7 +45,12 @@ class FfmpegWrapper:
 
     @property
     def data(self) -> schemas.Result:
-        info = ffmpeg.probe(self._source_path)
+        try:
+            info = ffmpeg.probe(self._source_path)
+        except ffmpeg.Error as e:
+            print(f"Error probing the input file {self._source_path}:", e)
+            print(e.stderr.decode())
+
         data = schemas.MediaMetadata(**info)
 
         video_streams = data.get_streams("video")

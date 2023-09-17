@@ -12,11 +12,10 @@ from worker.config import (
 
 def on_message_receive(ch, method, properties, body):
     data = decode_body(body)
+    logging.info(f"Starting to encode video with data: {data}")
     cmd = ["ffmpeg"] + data["command"]
 
     try:
-        logging.info(f"Starting to encode video with data: {data}")
-
         encode_started_at = time.time()
 
         process = subprocess.Popen(
