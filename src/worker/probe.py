@@ -2,10 +2,10 @@ import hashlib
 import os
 import uuid
 import json
-import ffmpeg
 import logging
 from . import schemas
 from .config import RABBITMQ_PROBE_RESULT_QUEUE
+import subprocess
 
 
 def on_message_receive(ch, method, properties, body):
@@ -14,7 +14,13 @@ def on_message_receive(ch, method, properties, body):
     source_path = data["source_path"]
     wrapper = FfmpegWrapper(source_path)
 
-    result = wrapper.data.model_dump_json()
+    try:
+        result = wrapper.data.model_dump_json()
+    except Exception as e:
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+        logging.error(f"Error probing video: {str(e)}")
+        return
+
     send_result(ch, method, result)
 
 
@@ -45,12 +51,16 @@ class FfmpegWrapper:
 
     @property
     def data(self) -> schemas.Result:
-        try:
-            info = ffmpeg.probe(self._source_path)
-        except ffmpeg.Error as e:
-            print(f"Error probing the input file {self._source_path}:", e)
-            print(e.stderr.decode())
+        args = ["ffprobe", "-show_format", "-show_streams", "-of", "json"]
+        args += [self._source_path]
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = p.communicate()
+        if p.returncode != 0:
+            message = json.loads(stderr.decode("utf-8"))
+            logging.error(f"ffprobe exited with code {p.returncode}. Error: {message}")
+            raise Exception(message)
 
+        info = json.loads(stdout.decode("utf-8"))
         data = schemas.MediaMetadata(**info)
 
         video_streams = data.get_streams("video")
